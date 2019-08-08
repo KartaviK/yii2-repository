@@ -166,9 +166,9 @@ interface iPostRepository extends iRepository
 namespace app\repositories;
 
 use app\repositories\interfaces\iPostRepository;
-use mhndev\yii2Repository\AbstractSqlArRepository;
+use mhndev\yii2Repository\Repository;
 
-class PostRepository extends AbstractSqlArRepository implements iPostRepository
+class PostRepository extends Repository implements iPostRepository
 {
 
 }

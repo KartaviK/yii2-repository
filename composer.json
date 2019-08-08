@@ -1,30 +1,49 @@
 {
-  "name": "mhndev/yii2-repository",
-  "description": "repository implementation in Yii2",
-  "type": "library",
-  "keywords": ["yii2","repository pattern","design pattern"],
-  "license": "MIT",
-  "authors": [
-    {
-      "name": "majid abdolhosseini",
-      "email": "majid8911303@gmail.com"
+    "name": "kartavik/yii2-repository",
+    "description": "repository implementation in Yii2",
+    "type": "library",
+    "keywords": [
+        "yii2",
+        "repository",
+        "design",
+        "pattern"
+    ],
+    "license": "MIT",
+    "minimum-stability": "stable",
+    "authors": [
+        {
+            "name": "majid abdolhosseini",
+            "email": "majid8911303@gmail.com"
+        },
+        {
+            "name": "Roman Varkuta",
+            "email": "roman.varkuta@gmail.com"
+        }
+    ],
+    "require": {
+        "php": "^7.1",
+        "ext-PDO": "*",
+        "myclabs/php-enum": "^1.7",
+        "yidas/yii2-composer-bower-skip": "~2.0.0",
+        "yiisoft/yii2": "^2.0.13"
+    },
+    "autoload": {
+        "psr-4": {
+            "Kartavik\\Yii2\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Kartavik\\Yii2\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "platform": {
+            "php": "7.1"
+        }
+    },
+    "suggest": {
+        "yiisoft/yii2-mongodb": "needed if you want to use mongodb as your dbms instead of relational dbms"
     }
-  ],
-  "require": {
-    "yiisoft/yii2": "*"
-  },
-
-  "suggest": {
-    "yiisoft/yii2-mongodb": "needed if you want to use mongodb as your dbms instead of relational dbms"
-  },
-
-
-  "autoload": {
-    "psr-4": {
-      "mhndev\\yii2Repository\\": "src/"
-    }
-  },
-
-  "minimum-stability": "stable"
-
 }
