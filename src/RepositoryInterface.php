@@ -15,6 +15,7 @@ declare(strict_types=1);
 namespace Kartavik\Yii2;
 
 use yii\db;
+use yii\db\ActiveRecord;
 
 /**
  * Interface RepositoryInterface
@@ -22,6 +23,13 @@ use yii\db;
  */
 interface RepositoryInterface
 {
+    /**
+     * Exist and declared ActiveRecord class name
+     *
+     * @return db\ActiveRecord|string
+     */
+    public function recordClass(): string;
+
     /**
      * @param array $with
      * @return self
@@ -47,6 +55,12 @@ interface RepositoryInterface
     public function orderBy(array $orderBy): RepositoryInterface;
 
     /**
+     * @param int $offset
+     * @return RepositoryInterface
+     */
+    public function offset(int $offset = 0): RepositoryInterface;
+
+    /**
      * @param iterable $data
      * @return db\ActiveRecord
      */
@@ -66,169 +80,155 @@ interface RepositoryInterface
     public function createMany(array $records, bool $runValidation = \true): iterable;
 
     /**
+     * @param array $records
+     * @return iterable
+     */
+    public function makeMany(array $records): iterable;
+
+    /**
      * @param mixed $id
      * @return array|mixed
-     * @throws db\Exception
+     * @return db\ActiveRecord|null
      */
-    public function findOneById($id);
+    public function findOneById($id): ?db\ActiveRecord;
 
     /**
-     * @param mixed $condition
-     * @param array $params
-     * @return array|mixed
-     * @throws db\Exception
+     * @param mixed  $field
+     * @param mixed  $value
+     * @param string $operator
+     * @param array  $params
+     * @return db\ActiveRecord|null
      */
-    public function findOneBy($condition, array $params = []);
+    public function findOneBy($field, $value, string $operator = '=', array $params = []): ?db\ActiveRecord;
 
     /**
-     * @param mixed $condition
+     * @param array $condition
      * @param array $params
-     * @return array|mixed
-     * @throws db\Exception
+     * @return ActiveRecord|null
      */
-    public function findManyBy($condition, array $params = []);
+    public function findOneByCondition(array $condition = [], array $params = []): ?ActiveRecord;
 
+    /**
+     * @param mixed  $field
+     * @param mixed  $value
+     * @param string $operator
+     * @param array  $params
+     * @return array|db\ActiveRecord[]
+     */
+    public function findManyBy($field, $value, string $operator = '=', array $params = []): array;
 
     /**
      * @param array $ids
-     * @param bool  $withPagination
-     * @param bool  $returnArray
-     * @return mixed
+     * @param array $params
+     * @return array|db\ActiveRecord[]
      */
-    public function findManyByIds(array $ids, $withPagination = true, $returnArray = false);
+    public function findManyByIds(array $ids, array $params = []): array;
 
     /**
-     * @param bool $withPagination
-     * @param bool $returnArray
-     * @return mixed
-     * @internal param $ $
+     * @return array
      */
-    public function findAll($withPagination = true, $returnArray = false);
+    public function findAll(): array;
 
     /**
-     * @param array $criteria
-     * @param bool  $withPagination
-     * @param array $with
-     * @param $
-     * @param bool  $returnArray
-     * @return mixed
-     */
-    public function findManyByCriteria(array $criteria = [], $withPagination = true, $with = [], $returnArray = false);
-
-
-    /**
-     * @param       $id
+     * @param mixed $id
      * @param array $data
-     * @return boolean
+     * @return ActiveRecord
+     * @throws \Throwable
+     * @throws db\StaleObjectException
+     * @throws Repository\Exception
      */
-    public function updateOneById($id, array $data = []): bool;
+    public function updateOneById($id, array $data = []): db\ActiveRecord;
 
     /**
-     * @param       $key
-     * @param       $value
+     * @param mixed $field
+     * @param mixed $value
      * @param array $data
-     * @return boolean
+     * @return ActiveRecord
+     * @throws \Throwable
+     * @throws db\StaleObjectException
+     * @throws Repository\Exception
      */
-    public function updateOneBy($key, $value, array $data = []): bool;
+    public function updateOneBy($field, $value, array $data = []): db\ActiveRecord;
 
     /**
-     * @param array $criteria
+     * @param array $condition
      * @param array $data
-     * @return boolean
+     * @return ActiveRecord
+     * @throws \Throwable
+     * @throws db\StaleObjectException
+     * @throws Repository\Exception
      */
-    public function updateOneByCriteria(array $criteria, array $data = []): bool;
+    public function updateOneByCondition(array $condition, array $data = []): db\ActiveRecord;
 
     /**
-     * @param        $key
-     * @param        $value
+     * @param mixed  $field
+     * @param mixed  $value
      * @param array  $data
      * @param string $operation
-     * @return bool
+     * @param array  $params
+     * @return int
      */
-    public function updateManyBy($key, $value, array $data = [], $operation = '='): bool;
+    public function updateManyBy($field, $value, array $data = [], $operation = '=', array $params = []): int;
 
     /**
-     * @param array $criteria
+     * @param array $condition
      * @param array $data
-     * @return boolean
+     * @param array $params
+     * @return int
      */
-    public function updateManyByCriteria(array $criteria = [], array $data = []): bool;
-
+    public function updateManyByCondition(array $condition = [], array $data = [], array $params = []): int;
 
     /**
      * @param array $ids
      * @param array $data
-     * @return bool
+     * @return int
      */
-    public function updateManyByIds(array $ids, array $data = []): bool;
+    public function updateManyByIds(array $ids, array $data = []): int;
 
     /**
      * @param $id
-     * @return boolean
+     * @return bool|false|int
+     * @throws \Throwable
+     * @throws db\StaleObjectException
      */
-    public function deleteOneById($id): bool;
-
+    public function deleteOneById($id);
 
     /**
-     * @param array $ids
-     * @return bool
-     */
-    public function allExist(array $ids): bool;
-
-    /**
-     * @param        $key
-     * @param        $value
+     * @param mixed $field
+     * @param mixed $value
      * @param string $operation
-     * @return bool
+     * @return bool|false|int
+     * @throws \Throwable
+     * @throws db\StaleObjectException
      */
-    public function deleteOneBy($key, $value, $operation = '='): bool;
+    public function deleteOneBy($field, $value, string $operation = '=');
+
+    /**
+     * @param array $condition
+     * @return false|int
+     * @throws \Throwable
+     * @throws db\StaleObjectException
+     */
+    public function deleteOneByCondition(array $condition = []);
+
+    /**
+     * @param mixed $field
+     * @param mixed $value
+     * @param string $operation
+     * @param array $params
+     * @return bool|int
+     */
+    public function deleteManyBy($field, $value, string $operation = '=', array $params = []);
 
     /**
      * @param array $criteria
      * @return boolean
      */
-    public function deleteOneByCriteria(array $criteria = []): bool;
-
-    /**
-     * @param        $key
-     * @param        $value
-     * @param string $operation
-     * @return bool
-     */
-    public function deleteManyBy($key, $value, $operation = '='): bool;
-
-    /**
-     * @param array $criteria
-     * @return boolean
-     */
-    public function deleteManyByCriteria(array $criteria = []): bool;
-
-    /**
-     * @return mixed
-     */
-    public function searchByCriteria();
-
+    public function deleteManyByCondition(array $criteria = []);
 
     /**
      * @param array $ids
-     * @return mixed
+     * @return int|mixed
      */
     public function deleteManyByIds(array $ids);
-
-
-    /**
-     * @param     $id
-     * @param     $field
-     * @param int $count
-     * @return
-     */
-    public function inc($id, $field, $count = 1);
-
-    /**
-     * @param     $id
-     * @param     $field
-     * @param int $count
-     * @return
-     */
-    public function dec($id, $field, $count = 1);
 }

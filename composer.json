@@ -27,6 +27,9 @@
         "yidas/yii2-composer-bower-skip": "~2.0.0",
         "yiisoft/yii2": "^2.0.13"
     },
+    "require-dev": {
+        "kartavik/yii2-phpunit": "^1.0"
+    },
     "autoload": {
         "psr-4": {
             "Kartavik\\Yii2\\": "src/"

@@ -14,106 +14,56 @@ declare(strict_types=1);
 
 namespace Kartavik\Yii2;
 
-use Kartavik\Yii2\Repository\Exception;
 use Kartavik\Yii2\Repository\Sort;
-use mhndev\yii2Repository\Exceptions\RepositoryException;
 use yii\base\Component;
-use yii\data\Pagination;
 use yii\db;
-use yii\db\ActiveRecord;
-use yii\db\Query;
 use yii\di;
 use yii\helpers\VarDumper;
 
 /**
  * Class Repository
- *
- * ```php
- * $postRepository->findManyBy(
- *      'title',
- *      'title5',
- *      'like'
- * );
- * ```
- *
- * $posts = $postRepository->findManyBy('title','title5');
- *
- * $posts = $postRepository->findManyByIds([1,2,3]);
- *
- * $posts = $postRepository->findManyWhereIn('text',['text1','text2']);
- *
- * $posts = $postRepository->findManyByCriteria([
- *           ['like', 'title','title'] , ['=','text','text1']
- * ]);
- *
- * $posts = $postRepository->findOneById(2);
- *
- * $postRepository->updateOneById(2, ['title'=>'new new']);
- *
- * $postRepository->updateManyByIds([1,2,3], ['title'=>'new new new']);
- *
- * $postRepository->updateManyBy('title','salam', ['text'=>'sssssssssss'], 'like');
- *
- * $postRepository->updateManyByCriteria([['like','title','salam'],['like','text','text2']], ['text'=>'salam']);
- *
- * $postRepository->deleteManyByIds([2,3]);
- *
- * $postRepository->deleteManyBy('title','title5','like');
- *
- * $posts = $postRepository->findManyWhereIn('title',['salam','salam2'], false);
- *
  * @package Kartavik\Yii2
  * @since 2.0
  */
 class Repository extends Component implements RepositoryInterface
 {
-    use RepositoryTrait;
+    /** @var db\ActiveRecord|string */
+    protected const RECORD = db\ActiveRecord::class;
 
-    public const PRIMARY_KEY = 'id';
-
-    /** @var db\Connection|string|array */
-    public $connection = db\Connection::class;
-
-    /** @var db\ActiveRecord|string|array */
-    public $record = db\ActiveRecord::class;
-
-    /**
-     * @var ActiveRecord
-     */
-    protected $model;
-
-    /**
-     * @var Query
-     */
-    protected $query;
-
-    /**
-     * @var array
-     */
+    /** @var array */
     protected $with = [];
 
-    /**
-     * @var array
-     */
+    /** @var array */
     protected $columns = ['*'];
 
-    /**
-     * @var array|string
-     */
+    /** @var array|string */
     protected $orderBy = [];
 
-    /**
-     * @var int
-     */
-    protected $limit = 10;
-
-    /**
-     * @var int
-     */
-    protected $offset = 0;
+    /** @var int */
+    protected $limit = 100;
 
     /** @var int */
-    protected $fetchMode = \PDO::FETCH_ASSOC;
+    protected $offset = 0;
+
+    /** @var db\Connection */
+    private $connection = db\Connection::class;
+
+    public function __construct(db\Connection $db, array $config = [])
+    {
+        $this->connection = $db;
+
+        parent::__construct($config);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @return db\ActiveRecord|string
+     */
+    public function recordClass(): string
+    {
+        return static::RECORD;
+    }
 
     /**
      * @throws \yii\base\InvalidConfigException
@@ -121,9 +71,8 @@ class Repository extends Component implements RepositoryInterface
     public function init(): void
     {
         $this->connection = di\Instance::ensure($this->connection, db\Connection::class);
-        $this->connection = di\Instance::ensure($this->record, db\ActiveRecord::class);
 
-        foreach ((array)$this->record::primaryKey() as $key) {
+        foreach ((array)$this->recordClass()::primaryKey() as $key) {
             $this->orderBy[$key] = Sort::DESC;
         }
     }
@@ -168,13 +117,6 @@ class Repository extends Component implements RepositoryInterface
         return $this;
     }
 
-    public function fetchMode($fetchMode = \PDO::FETCH_ASSOC): RepositoryInterface
-    {
-        $this->fetchMode = $fetchMode;
-
-        return $this;
-    }
-
     /**
      * {@inheritDoc}
      */
@@ -198,17 +140,13 @@ class Repository extends Component implements RepositoryInterface
     /**
      * {@inheritDoc}
      */
-    public function create(iterable $data = []): ActiveRecord
+    public function create(iterable $data = []): db\ActiveRecord
     {
-        /** @var ActiveRecord $record */
-        $record = new $this->record();
-
-        foreach ($data as $property => $value) {
-            $record->setAttribute($property, $value);
-        }
+        /** @var db\ActiveRecord $record */
+        $record = $this->make($data);
 
         if (!$record->save()) {
-            throw new Repository\Exception($this->formErrorMessage($record));
+            throw new Repository\Exception($this->exportErrorMessage($record));
         }
 
         return $record;
@@ -217,10 +155,10 @@ class Repository extends Component implements RepositoryInterface
     /**
      * {@inheritDoc}
      */
-    public function make(iterable $data = []): ActiveRecord
+    public function make(iterable $data = []): db\ActiveRecord
     {
-        /** @var ActiveRecord $record */
-        $record = new $this->record();
+        /** @var db\ActiveRecord $record */
+        $record = new ($this->recordClass());
 
         foreach ($data as $property => $value) {
             $record->setAttribute($property, $value);
@@ -234,17 +172,24 @@ class Repository extends Component implements RepositoryInterface
      */
     public function createMany(array $records, bool $runValidation = \true): iterable
     {
-        /** @var ActiveRecord[] $batch */
-        $batch = [];
-
-        foreach ($records as $recordData) {
-            $batch[] = new $this->record((array)$recordData);
-        }
+        /** @var db\ActiveRecord[] $batch */
+        $batch = $this->makeMany($records);
 
         foreach ($batch as $record) {
             if (!$record->save($runValidation)) {
-                throw new Repository\Exception($this->formErrorMessage($record));
+                throw new Repository\Exception($this->exportErrorMessage($record));
             }
+        }
+
+        return $batch;
+    }
+
+    public function makeMany(array $records): iterable
+    {
+        $batch = [];
+
+        foreach ($records as $recordData) {
+            $batch[] = $this->make($recordData);
         }
 
         return $batch;
@@ -253,33 +198,215 @@ class Repository extends Component implements RepositoryInterface
     /**
      * {@inheritDoc}
      */
-    public function findOneById($id)
+    public function findOneBy($field, $value, string $operator = '=', array $params = []): ?db\ActiveRecord
+    {
+        return $this->findOneByCondition([$operator, $field, $value]);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function findOneById($id): ?db\ActiveRecord
+    {
+        return $this->findOneByCondition($this->primaryKeyCondition((array)$id));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function findOneByCondition(array $condition = [], array $params = []): ?db\ActiveRecord
     {
         return $this->fetchOne(
-            $this->apply($this->record::find())
-                ->where(
-                    \array_combine((array)$this->record::primaryKey(), \is_array($id) ? $id : [$id])
-                )
+            $this->apply($this->recordClass()::find())
+                ->where($condition, $params)
         );
     }
 
     /**
      * {@inheritDoc}
      */
-    public function findOneBy($condition, array $params = [])
+    public function findManyBy($field, $value, string $operator = '=', array $params = []): array
     {
-        return $this->fetchOne(
-            $this->apply($this->record::find())
+        return $this->findManyByCondition([$operator, $field, $value]);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function findManyByIds(array $ids, array $params = []): array
+    {
+        return $this->findManyByCondition($this->primaryKeyCondition($ids), $params);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function findManyWhereIn($field, array $values): ?array
+    {
+        return $this->findManyByCondition([$field => $values]);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function findManyByCondition(array $condition = [], array $params = []): array
+    {
+        return $this->fetchMany(
+            $this->apply($this->recordClass()::find())
                 ->where($condition, $params)
         );
     }
 
-    public function findManyBy($condition, array $params = [])
+    /**
+     * {@inheritDoc}
+     */
+    public function findAll(): array
     {
         return $this->fetchMany(
-            $this->apply($this->record::find())
-                ->where($condition, $params)
+            $this->apply($this->recordClass()::find())
         );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function updateOneById(
+        $id,
+        array $data = [],
+        $runValidation = \true,
+        array $attributeNames = \null
+    ): db\ActiveRecord {
+        return $this->updateRecord($this->findOneById($id), $data, $runValidation, $attributeNames);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function updateOneBy($field, $value, array $data = [], array $params = []): db\ActiveRecord
+    {
+        return $this->updateRecord($this->findOneBy($field, $value, '=', $params), $data);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function updateOneByCondition(array $condition, array $data = [], array $params = []): db\ActiveRecord
+    {
+        return $this->updateRecord($this->findOneByCondition($condition, $params), $data);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function updateManyBy($field, $value, array $data = [], $operation = '=', array $params = []): int
+    {
+        return $this->recordClass()::updateAll($data, [$operation, $field, $value], $params);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function updateManyByCondition(array $condition = [], array $data = [], array $params = []): int
+    {
+        return $this->recordClass()::updateAll($data, $condition, $params);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function updateManyByIds(array $ids, array $data = [], array $params = []): int
+    {
+        return $this->recordClass()::updateAll($data, ['in', $this->primaryKeyCondition($ids)], $params);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function deleteOneById($id)
+    {
+        return $this->deleteRecord(
+            $this->findOneById($id)
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function deleteOneBy($field, $value, string $operation = '=', array $params = [])
+    {
+        return $this->deleteRecord(
+            $this->findOneBy($field, $value, $operation, $params)
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function deleteOneByCondition(array $condition = [], array $params = [])
+    {
+        return $this->deleteRecord(
+            $this->findOneByCondition($condition)
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function deleteManyBy($field, $value, string $operation = '=', array $params = [])
+    {
+        return $this->recordClass()::deleteAll([$operation, $field, $value], $params);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function deleteManyByCondition(array $condition = [])
+    {
+        return $this->recordClass()::deleteAll($condition);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function deleteManyByIds(array $ids)
+    {
+        return $this->recordClass()::deleteAll(['in', $this->primaryKeyCondition($ids)]);
+    }
+
+    /**
+     * @param db\ActiveRecord $record
+     * @param array        $data
+     * @param bool         $runValidation
+     * @param array|null   $attributeNames
+     * @return db\ActiveRecord
+     * @throws \Throwable
+     * @throws db\StaleObjectException
+     * @throws Repository\Exception
+     */
+    protected function updateRecord(
+        db\ActiveRecord $record,
+        array $data,
+        bool $runValidation = \true,
+        array $attributeNames = \null
+    ): db\ActiveRecord {
+        $record->setAttributes($data);
+
+        if (!$record->update($runValidation, $attributeNames)) {
+            throw new Repository\Exception($this->exportErrorMessage($record));
+        }
+
+        return $record;
+    }
+
+    /**
+     * @param db\ActiveRecord|null $record
+     * @return false|int
+     * @throws \Throwable
+     * @throws db\StaleObjectException
+     */
+    protected function deleteRecord(?db\ActiveRecord $record)
+    {
+        return $record === \null ?: $record->delete();
     }
 
     /**
@@ -295,25 +422,36 @@ class Repository extends Component implements RepositoryInterface
 
     /**
      * @param db\ActiveQuery $query
-     * @return array|false
-     * @throws db\Exception
+     * @return db\ActiveRecord|null
      */
-    protected function fetchOne(db\ActiveQuery $query)
+    protected function fetchOne(db\ActiveQuery $query): ?db\ActiveRecord
     {
-        return $query->createCommand($this->connection)->queryOne($this->fetchMode);
+        return $query->one($this->connection);
     }
 
     /**
      * @param db\ActiveQuery $query
-     * @return array
-     * @throws db\Exception
+     * @return array|db\ActiveRecord[]
      */
-    protected function fetchMany(db\ActiveQuery $query)
+    protected function fetchMany(db\ActiveQuery $query): array
     {
-        return $query->createCommand($this->connection)->queryAll($this->fetchMode);
+        return $query->all($this->connection);
     }
 
-    protected function formErrorMessage(ActiveRecord $record): string
+    /**
+     * @param array $ids
+     * @return array
+     */
+    protected function primaryKeyCondition(array $ids): array
+    {
+        return \array_combine((array)$this->recordClass()::primaryKey(), $ids);
+    }
+
+    /**
+     * @param db\ActiveRecord $record
+     * @return string
+     */
+    protected function exportErrorMessage(db\ActiveRecord $record): string
     {
         return VarDumper::export($record->getErrorSummary(\true));
     }
